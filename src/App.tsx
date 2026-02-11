@@ -14,7 +14,17 @@ function App() {
     if (embed === 'true' || embed === '1') {
       setIsEmbedMode(true);
       setCurrentPage('flex'); // 嵌入模式直接显示Flex Prediction
+      
+      // 嵌入模式下隐藏滚动条
+      document.body.style.overflow = 'hidden';
+      document.documentElement.style.overflow = 'hidden';
     }
+    
+    return () => {
+      // 清理
+      document.body.style.overflow = '';
+      document.documentElement.style.overflow = '';
+    };
   }, []);
 
   const handleEnterFlexMode = (direction: 'over' | 'under') => {
