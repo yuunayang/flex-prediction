@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ChevronLeft, TrendingUp, TrendingDown, ChevronRight, Minus, Plus, SlidersHorizontal } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Minus, Plus, SlidersHorizontal } from 'lucide-react';
 
 interface StandardTradeProps {
   onEnterFlexMode: (direction: 'over' | 'under') => void;
