@@ -1,18 +1,38 @@
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
-import { TrendingUp, TrendingDown, DollarSign, AlertTriangle, ArrowRight, ChevronLeft, Info, Loader2, Check } from 'lucide-react';
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import { TrendingUp, TrendingDown, DollarSign, AlertTriangle, ArrowRight, ChevronLeft, Info } from 'lucide-react';
 import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart, ReferenceDot } from 'recharts';
 
 interface RiskRewardInterfaceProps {
   initialDirection?: 'over' | 'under';
   onBack?: () => void;
-  embedMode?: boolean; // 嵌入模式：用于Framer等外部网站嵌入
+  embed?: boolean;
 }
+
+const PHONE_W = 390;
+const PHONE_H = 844;
 
 const RiskRewardInterface: React.FC<RiskRewardInterfaceProps> = ({ 
   initialDirection = 'over',
   onBack,
-  embedMode = false
+  embed = false,
 }) => {
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(1);
+
+  useEffect(() => {
+    if (!embed || !wrapperRef.current) return;
+
+    const ro = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const { width, height } = entry.contentRect;
+        const s = Math.min(width / PHONE_W, height / PHONE_H, 1);
+        setScale(s);
+      }
+    });
+
+    ro.observe(wrapperRef.current);
+    return () => ro.disconnect();
+  }, [embed]);
   // ==================== 比赛实时状态 ====================
   // 模拟 NFL Live 比赛数据
   const [matchData, setMatchData] = useState({
@@ -59,26 +79,6 @@ const RiskRewardInterface: React.FC<RiskRewardInterfaceProps> = ({
 
   // 实时波动因子（模拟市场波动）
   const [volatilityFactor, setVolatilityFactor] = useState(0);
-
-  // Buy 按钮状态：idle | loading | success
-  const [buyButtonState, setBuyButtonState] = useState<'idle' | 'loading' | 'success'>('idle');
-
-  // 处理 Buy 按钮点击
-  const handleBuyClick = () => {
-    if (buyButtonState !== 'idle') return;
-    
-    setBuyButtonState('loading');
-    
-    // 0.8秒后变为成功状态
-    setTimeout(() => {
-      setBuyButtonState('success');
-      
-      // 2.5秒后恢复初始状态
-      setTimeout(() => {
-        setBuyButtonState('idle');
-      }, 2500);
-    }, 800);
-  };
 
   // ==================== 实时数据模拟 ====================
   useEffect(() => {
@@ -274,461 +274,12 @@ const RiskRewardInterface: React.FC<RiskRewardInterfaceProps> = ({
     return `Q${matchData.matchTime} ${matchData.timeInQuarter}`;
   };
 
-  // 嵌入模式的响应式容器
-  if (embedMode) {
-  return (
-      <div className="w-full h-screen bg-transparent font-sans text-gray-800 select-none flex items-center justify-center overflow-hidden">
-        {/* 响应式缩放容器 - 保持 390:844 的宽高比 */}
-        <div 
-          className="relative w-full h-full flex items-center justify-center"
-          style={{ maxWidth: '100vw', maxHeight: '100vh' }}
-        >
-          <div 
-            className="relative bg-gray-900 rounded-[50px] p-3 shadow-2xl origin-center"
-            style={{ 
-              width: '390px', 
-              height: '844px',
-              transform: 'scale(var(--embed-scale, 1))',
-            }}
-          >
-            {/* 动态岛 */}
-            <div className="absolute top-4 left-1/2 -translate-x-1/2 w-[120px] h-[35px] bg-black rounded-full z-20" />
-            
-            {/* 屏幕内容 */}
-            <div className="w-full h-full bg-white rounded-[38px] overflow-hidden">
-              
-              {/* 状态栏 */}
-              <div className="h-11 flex items-end justify-between px-8 pb-1">
-                <span className="text-xs font-semibold text-gray-900">9:41</span>
-                <div className="flex items-center gap-1">
-                  <svg className="w-4 h-4 text-gray-900" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M1 9l2 2c4.97-4.97 13.03-4.97 18 0l2-2C16.93 2.93 7.08 2.93 1 9zm8 8l3 3 3-3c-1.65-1.66-4.34-1.66-6 0zm-4-4l2 2c2.76-2.76 7.24-2.76 10 0l2-2C15.14 9.14 8.87 9.14 5 13z"/>
-                  </svg>
-                  <svg className="w-4 h-4 text-gray-900" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M2 22h2V2H2v20zm4 0h2V7H6v15zm4 0h2V12h-2v10zm4 0h2V2h-2v20zm4 0h2V7h-2v15z"/>
-                  </svg>
-                  <div className="flex items-center ml-0.5">
-                    <div className="w-6 h-3 border-2 border-gray-900 rounded-sm flex items-center p-0.5 relative">
-                      <div className="w-full h-full bg-gray-900 rounded-[1px]"></div>
-                    </div>
-                    <div className="w-0.5 h-1.5 bg-gray-900 rounded-r-sm -ml-[1px]"></div>
-                  </div>
-                </div>
-              </div>
-            
-              {/* 顶部导航与标题 - 嵌入模式下隐藏返回按钮 */}
-              <div className="px-5 pt-2 pb-1">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center">
-                    <p className="text-gray-400 text-[10px] tracking-wide">
-                      Sports · NFL · AFC Championship
-                    </p>
-                  </div>
-                  {/* LIVE 标签 */}
-                  {matchData.isLive && (
-                    <div className="flex items-center gap-1 bg-red-50 px-1.5 py-0.5 rounded-full">
-                      <span className="relative flex h-1.5 w-1.5">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-red-500"></span>
-                      </span>
-                      <span className="text-[10px] font-bold text-red-600">LIVE</span>
-                    </div>
-                  )}
-                </div>
-                
-                <h1 className="text-lg font-bold text-gray-900 leading-tight">
-                  Flex Prediction
-                </h1>
-                <p className="text-gray-500 text-[11px] mt-0.5">
-                  Adjust the target score to customize your risk.
-                </p>
-              </div>
-
-              {/* 实时比分栏 - NFL 风格 */}
-              <div className="mx-5 mt-3 mb-2 bg-gradient-to-r from-gray-900 to-gray-800 rounded-lg px-3 py-2 text-white">
-                <div className="flex items-center justify-center gap-3">
-                  <span className="text-xs font-medium text-gray-300">{matchData.homeTeam}</span>
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-lg font-bold">{matchData.homeScore}</span>
-                    <span className="text-gray-500 text-xs">-</span>
-                    <span className="text-lg font-bold">{matchData.awayScore}</span>
-                  </div>
-                  <span className="text-xs font-medium text-gray-300">{matchData.awayTeam}</span>
-                  <div className="bg-white/10 px-1.5 py-0.5 rounded-full ml-1">
-                    <span className="text-[10px] font-medium">{formatMatchTime()}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* 核心交互区 */}
-              <div className="px-5 pt-2 pb-4">
-                
-                {/* 方向切换 */}
-                <div className="flex bg-gray-100 p-0.5 rounded-lg mb-4">
-                  <button
-                    onClick={() => handleDirectionChange('over')}
-                    className={`flex-1 py-2 rounded-md text-xs font-semibold transition-all duration-300 flex items-center justify-center gap-1.5 ${
-                      direction === 'over' 
-                        ? 'bg-white text-[#00C896] shadow-sm ring-1 ring-black/5' 
-                        : 'text-gray-500 hover:text-gray-700'
-                    }`}
-                  >
-                    <TrendingUp size={14} />
-                    Over
-                  </button>
-                  <button
-                    onClick={() => handleDirectionChange('under')}
-                    className={`flex-1 py-2 rounded-md text-xs font-semibold transition-all duration-300 flex items-center justify-center gap-1.5 ${
-                      direction === 'under' 
-                        ? 'bg-white text-amber-600 shadow-sm ring-1 ring-black/5' 
-                        : 'text-gray-500 hover:text-gray-700'
-                    }`}
-                  >
-                    <TrendingDown size={14} />
-                    Under
-                  </button>
-                </div>
-
-                {/* 图表区域 */}
-                <div className="relative h-40 w-full [&_*]:outline-none">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={chartData} margin={{ top: 8, right: 8, left: -22, bottom: 0 }}>
-                      <defs>
-                        <linearGradient id="colorActiveEmbed" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor={COLORS[direction]} stopOpacity={0.2}/>
-                          <stop offset="95%" stopColor={COLORS[direction]} stopOpacity={0}/>
-                        </linearGradient>
-                        <linearGradient id="colorInactiveEmbed" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#9ca3af" stopOpacity={0.1}/>
-                          <stop offset="95%" stopColor="#9ca3af" stopOpacity={0}/>
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
-                      <XAxis 
-                        dataKey="xValue"
-                        ticks={direction === 'over' ? [0, 7, 14, 22, 29] : [0, 7, 14, 20, 27]}
-                        tick={(props: any) => {
-                          const { x, y, payload } = props;
-                          const xVal = Number(payload.value);
-                          const score = direction === 'over' 
-                            ? OVER_MIN + xVal 
-                            : UNDER_MAX - xVal;
-                          const range = direction === 'over' ? OVER_RANGE : UNDER_RANGE;
-                          const isFirstOrLast = xVal === 0 || xVal === range;
-                          return (
-                            <text 
-                              x={x} 
-                              y={Number(y) + 10} 
-                              textAnchor="middle" 
-                              fontSize={9} 
-                              fill={isFirstOrLast ? '#6b7280' : '#d1d5db'}
-                              fontWeight={isFirstOrLast ? 500 : 400}
-                            >
-                              {score}
-                            </text>
-                          );
-                        }}
-                        axisLine={false}
-                        tickLine={false}
-                      />
-                      <YAxis 
-                        tick={{fontSize: 9, fill: '#9ca3af'}} 
-                        axisLine={false}
-                        tickLine={false}
-                        domain={[1.4, 'auto']}
-                        tickFormatter={(val) => `${val}x`}
-                      />
-                      <Tooltip 
-                        content={({ active, payload, label }) => {
-                          if (!active || !payload || payload.length === 0) return null;
-                          
-                          const activeItem = payload.find(p => p.dataKey === 'activeMultiplier' && p.value !== null);
-                          const inactiveItem = payload.find(p => p.dataKey === 'inactiveMultiplier' && p.value !== null);
-                          const multiplier = activeItem?.value ?? inactiveItem?.value;
-                          const isActive = !!activeItem;
-                          
-                          if (!multiplier) return null;
-                          
-                          const xVal = Number(label);
-                          const score = direction === 'over' 
-                            ? OVER_MIN + xVal 
-                            : UNDER_MAX - xVal;
-                          
-                          return (
-                            <div className="bg-white px-2 py-1.5 rounded-lg shadow-lg border border-gray-100">
-                              <p className="text-xs font-medium text-gray-700">{direction === 'over' ? 'Over' : 'Under'} {score} pts</p>
-                              <p className={`text-xs font-semibold ${isActive ? (direction === 'over' ? 'text-[#00C896]' : 'text-amber-600') : 'text-gray-400'}`}>
-                                Multiplier: {multiplier}x
-                              </p>
-                            </div>
-                          );
-                        }}
-                      />
-                      <Area 
-                        type="monotone" 
-                        dataKey="inactiveMultiplier" 
-                        stroke="#d1d5db"
-                        strokeWidth={2}
-                        strokeDasharray="4 4"
-                        fillOpacity={1} 
-                        fill="url(#colorInactiveEmbed)" 
-                        animationDuration={200}
-                        connectNulls={false}
-                      />
-                      <Area 
-                        type="monotone" 
-                        dataKey="activeMultiplier" 
-                        stroke={COLORS[direction]} 
-                        strokeWidth={2}
-                        fillOpacity={1} 
-                        fill="url(#colorActiveEmbed)" 
-                        animationDuration={200}
-                        connectNulls={false}
-                      />
-                      <ReferenceDot 
-                        x={currentSliderValue} 
-                        y={currentMultiplier} 
-                        r={4}
-                        fill="white"
-                        stroke={COLORS[direction]}
-                        strokeWidth={2}
-                      />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                  
-                  {/* 浮动标签 - 隐含胜率 */}
-                  <div className={`absolute -top-1 right-6 bg-white/70 backdrop-blur-sm px-2 py-0.5 rounded-md border border-gray-100/50 text-[10px] font-medium ${direction === 'over' ? 'text-[#00C896]' : 'text-amber-600'} ${multiplierFlicker ? 'opacity-70' : 'opacity-100'} transition-opacity`}>
-                     Implied Prob: {calculateImpliedProb(currentMultiplier)}%
-                  </div>
-                </div>
-
-                {/* 滑块控制 */}
-                <div className="mt-5 mb-5 relative">
-                  <label className="block text-xs font-medium text-gray-700 mb-1.5 flex justify-between">
-                    <span>Set Your Target Score</span>
-                    <span className={`font-semibold ${direction === 'over' ? 'text-[#00C896]' : 'text-amber-600'}`}>
-                      {direction === 'over' ? 'Over' : 'Under'} {targetScore} pts
-                    </span>
-                  </label>
-                  <style>
-                    {`
-                      .slider-thumb-embed::-webkit-slider-thumb {
-                        -webkit-appearance: none;
-                        appearance: none;
-                        width: 28px;
-                        height: 18px;
-                        border-radius: 9px;
-                        cursor: grab;
-                        border: none;
-                        background: 
-                          linear-gradient(to bottom, 
-                            transparent 6px, 
-                            rgba(0,0,0,0.06) 6px, rgba(0,0,0,0.06) 7px, 
-                            transparent 7px,
-                            transparent 10px, 
-                            rgba(0,0,0,0.06) 10px, rgba(0,0,0,0.06) 11px, 
-                            transparent 11px
-                          ),
-                          linear-gradient(to bottom, 
-                            #ffffff 0%, 
-                            #fafafa 20%,
-                            #f5f5f5 50%, 
-                            #ebebeb 80%,
-                            #e0e0e0 100%
-                          );
-                        box-shadow: 
-                          0 2px 8px rgba(0, 0, 0, 0.12),
-                          0 1px 3px rgba(0, 0, 0, 0.08),
-                          inset 0 1px 0 rgba(255, 255, 255, 1),
-                          inset 0 -1px 0 rgba(0, 0, 0, 0.04);
-                        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-                      }
-                      .slider-thumb-embed::-webkit-slider-thumb:hover {
-                        cursor: grab;
-                        transform: scale(1.05);
-                        box-shadow: 
-                          0 4px 12px rgba(0, 0, 0, 0.15),
-                          0 2px 4px rgba(0, 0, 0, 0.1),
-                          0 0 10px 2px ${direction === 'over' ? 'rgba(0, 200, 150, 0.2)' : 'rgba(245, 158, 11, 0.2)'},
-                          inset 0 1px 0 rgba(255, 255, 255, 1);
-                      }
-                      .slider-thumb-embed::-webkit-slider-thumb:active {
-                        cursor: grabbing;
-                        transform: scale(0.98);
-                        box-shadow: 
-                          0 1px 4px rgba(0, 0, 0, 0.1),
-                          0 0 16px 4px ${direction === 'over' ? 'rgba(0, 200, 150, 0.25)' : 'rgba(245, 158, 11, 0.25)'};
-                      }
-                      .slider-thumb-embed::-moz-range-thumb {
-                        width: 28px;
-                        height: 18px;
-                        border-radius: 9px;
-                        cursor: grab;
-                        border: none;
-                        background: linear-gradient(to bottom, #ffffff 0%, #e0e0e0 100%);
-                        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
-                      }
-                    `}
-                  </style>
-                  <input
-                    type="range"
-                    min={0}
-                    max={currentRange}
-                    value={currentSliderValue}
-                    onChange={(e) => {
-                      const sliderVal = parseInt(e.target.value);
-                      if (direction === 'over') {
-                        setTargetScore(OVER_MIN + sliderVal);
-                      } else {
-                        setTargetScore(UNDER_MAX - sliderVal);
-                      }
-                    }}
-                    className="w-full h-2 rounded-full appearance-none cursor-pointer slider-thumb-embed"
-                    style={{
-                      background: `linear-gradient(to right, ${COLORS[direction]} 0%, ${COLORS[direction]} ${sliderPercent}%, #e5e7eb ${sliderPercent}%, #e5e7eb 100%)`,
-                      boxShadow: 'inset 0 1px 2px rgba(0, 0, 0, 0.1)'
-                    }}
-                  />
-                  <div className="mt-1 flex justify-between text-[10px] text-gray-500 px-0.5">
-                    <span>{direction === 'over' ? 'Low Risk' : 'High Risk'}</span>
-                    <span>{direction === 'over' ? 'High Risk' : 'Low Risk'}</span>
-                  </div>
-                </div>
-
-                {/* 核心数据展示面板 */}
-                <div className="bg-gray-50 rounded-xl p-3 mb-4 border border-gray-100">
-                  <div className="flex justify-between items-center mb-2.5">
-                    <div>
-                      <p className="text-[10px] text-gray-500 uppercase tracking-wide font-semibold mb-0.5">
-                        Current Multiplier
-                      </p>
-                      <span className={`text-xl font-bold transition-all ${direction === 'over' ? 'text-[#00C896]' : 'text-amber-600'} ${multiplierFlicker ? 'opacity-60' : 'opacity-100'}`}>
-                        {currentMultiplier.toFixed(2)}x
-                      </span>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-[10px] text-gray-500 uppercase tracking-wide font-semibold mb-0.5">Est. Payout</p>
-                      <span className="text-xl font-bold text-gray-900">${potentialReturn}</span>
-                    </div>
-                  </div>
-                  
-                  {/* 金额输入 */}
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none">
-                      <DollarSign size={14} className={isAmountInvalid ? 'text-red-400' : 'text-gray-400'} />
-                    </div>
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      value={amountDisplay}
-                      onChange={handleAmountChange}
-                      className={`w-full pl-7 pr-3 py-2.5 text-sm font-semibold rounded-lg border transition-colors ${
-                        isAmountInvalid 
-                          ? 'border-red-300 focus:ring-red-500 focus:border-red-500 bg-red-50' 
-                          : direction === 'over' 
-                            ? 'border-gray-200 focus:ring-[#00C896] focus:border-[#00C896]' 
-                            : 'border-gray-200 focus:ring-amber-500 focus:border-amber-500'
-                      }`}
-                      placeholder="10"
-                    />
-                  </div>
-                  {isAmountInvalid && (
-                    <p className="text-[10px] text-red-500 flex items-center gap-1">
-                      <AlertTriangle size={10} />
-                      {isAmountTooLow && `Minimum amount is $${MIN_AMOUNT}`}
-                      {isAmountTooHigh && `Maximum amount is $${MAX_AMOUNT.toLocaleString()}`}
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              {/* 底部按钮 */}
-              <button 
-                disabled={isAmountInvalid || buyButtonState !== 'idle'}
-                onClick={handleBuyClick}
-                className={`mx-5 w-[calc(100%-40px)] py-3 rounded-xl font-bold text-sm text-white transition-all duration-300 flex items-center justify-center gap-2 ${
-                  isAmountInvalid 
-                    ? 'bg-gray-300 cursor-not-allowed' 
-                    : buyButtonState === 'loading'
-                      ? direction === 'over'
-                        ? 'bg-[#00A67A] cursor-wait'
-                        : 'bg-amber-600 cursor-wait'
-                      : buyButtonState === 'success'
-                        ? direction === 'over'
-                          ? 'bg-[#00C896] shadow-md shadow-[#00C896]/20'
-                          : 'bg-amber-500 shadow-md shadow-amber-500/20'
-                        : direction === 'over' 
-                          ? 'bg-[#00C896] hover:bg-[#00B085] shadow-md shadow-[#00C896]/20 active:scale-[0.98]' 
-                          : 'bg-amber-500 hover:bg-amber-600 shadow-md shadow-amber-500/20 active:scale-[0.98]'
-                }`}
-              >
-                {buyButtonState === 'loading' ? (
-                  <Loader2 size={18} className="animate-spin" />
-                ) : buyButtonState === 'success' ? (
-                  <>
-                    <Check size={18} />
-                    <span>Position Added</span>
-                  </>
-                ) : (
-                  <>
-                    <span>{direction === 'over' ? 'Buy Over' : 'Buy Under'}</span>
-                    <ArrowRight size={16} />
-                  </>
-                )}
-              </button>
-
-              {/* 风险提示 */}
-              <div className="mx-5 mt-2 flex items-start gap-1.5 text-[10px] text-gray-400 leading-relaxed">
-                <Info size={12} className="flex-shrink-0 mt-0.5" />
-                <p>
-                  Prediction markets involve risk. Multipliers adjust dynamically.
-                </p>
-              </div>
-
-            </div>
-          </div>
-        </div>
-        
-        {/* 响应式缩放脚本 */}
-        <style>
-          {`
-            @media (max-height: 900px) {
-              :root { --embed-scale: 0.95; }
-            }
-            @media (max-height: 850px) {
-              :root { --embed-scale: 0.9; }
-            }
-            @media (max-height: 800px) {
-              :root { --embed-scale: 0.85; }
-            }
-            @media (max-height: 750px) {
-              :root { --embed-scale: 0.8; }
-            }
-            @media (max-height: 700px) {
-              :root { --embed-scale: 0.75; }
-            }
-            @media (max-height: 650px) {
-              :root { --embed-scale: 0.7; }
-            }
-            @media (max-height: 600px) {
-              :root { --embed-scale: 0.65; }
-            }
-            @media (max-width: 450px) {
-              :root { --embed-scale: calc(100vw / 420); }
-            }
-          `}
-        </style>
-      </div>
-    );
-  }
-
-  // 正常模式（非嵌入）
-  return (
-    <div className="flex justify-center items-center min-h-screen bg-gray-200 p-4 font-sans text-gray-800 select-none">
+  const phoneContent = (
+    <>
       {/* iPhone 14 容器 - 390x844 */}
       <div 
         className="relative bg-gray-900 rounded-[50px] p-3 shadow-2xl"
-        style={{ width: '390px', height: '844px' }}
+        style={{ width: `${PHONE_W}px`, height: `${PHONE_H}px` }}
       >
         {/* 动态岛 */}
         <div className="absolute top-4 left-1/2 -translate-x-1/2 w-[120px] h-[35px] bg-black rounded-full z-20" />
@@ -755,41 +306,41 @@ const RiskRewardInterface: React.FC<RiskRewardInterfaceProps> = ({
             </div>
           </div>
         
-        {/* 顶部导航与标题 */}
+          {/* 顶部导航与标题 */}
           <div className="px-5 pt-2 pb-1">
             <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center">
+              <div className="flex items-center">
                 <button 
                   onClick={onBack}
                   className="p-1.5 -ml-1.5 rounded-lg hover:bg-gray-100 transition-colors text-gray-500 hover:text-gray-700"
                 >
                   <ChevronLeft size={18} />
-              </button>
+                </button>
                 <p className="text-gray-400 text-[10px] tracking-wide ml-0.5">
-                Sports · NFL · AFC Championship
-              </p>
-            </div>
-            {/* LIVE 标签 */}
-            {matchData.isLive && (
+                  Sports · NFL · AFC Championship
+                </p>
+              </div>
+              {/* LIVE 标签 */}
+              {matchData.isLive && (
                 <div className="flex items-center gap-1 bg-red-50 px-1.5 py-0.5 rounded-full">
                   <span className="relative flex h-1.5 w-1.5">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
                     <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-red-500"></span>
-                </span>
+                  </span>
                   <span className="text-[10px] font-bold text-red-600">LIVE</span>
-              </div>
-            )}
-          </div>
-          
+                </div>
+              )}
+            </div>
+            
             <h1 className="text-lg font-bold text-gray-900 leading-tight">
-            Flex Prediction
-          </h1>
+              Flex Prediction
+            </h1>
             <p className="text-gray-500 text-[11px] mt-0.5">
               Adjust the target score to customize your risk.
-          </p>
-        </div>
+            </p>
+          </div>
 
-        {/* 实时比分栏 - NFL 风格 */}
+          {/* 实时比分栏 - NFL 风格 */}
           <div className="mx-5 mt-3 mb-2 bg-gradient-to-r from-gray-900 to-gray-800 rounded-lg px-3 py-2 text-white">
             <div className="flex items-center justify-center gap-3">
               <span className="text-xs font-medium text-gray-300">{matchData.homeTeam}</span>
@@ -797,171 +348,171 @@ const RiskRewardInterface: React.FC<RiskRewardInterfaceProps> = ({
                 <span className="text-lg font-bold">{matchData.homeScore}</span>
                 <span className="text-gray-500 text-xs">-</span>
                 <span className="text-lg font-bold">{matchData.awayScore}</span>
-            </div>
+              </div>
               <span className="text-xs font-medium text-gray-300">{matchData.awayTeam}</span>
               <div className="bg-white/10 px-1.5 py-0.5 rounded-full ml-1">
                 <span className="text-[10px] font-medium">{formatMatchTime()}</span>
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* 核心交互区 */}
+          {/* 核心交互区 */}
           <div className="px-5 pt-2 pb-4">
-          
-          {/* 方向切换 */}
+            
+            {/* 方向切换 */}
             <div className="flex bg-gray-100 p-0.5 rounded-lg mb-4">
-            <button
-              onClick={() => handleDirectionChange('over')}
+              <button
+                onClick={() => handleDirectionChange('over')}
                 className={`flex-1 py-2 rounded-md text-xs font-semibold transition-all duration-300 flex items-center justify-center gap-1.5 ${
-                direction === 'over' 
+                  direction === 'over' 
                     ? 'bg-white text-[#00C896] shadow-sm ring-1 ring-black/5' 
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
                 <TrendingUp size={14} />
-              Over
-            </button>
-            <button
-              onClick={() => handleDirectionChange('under')}
+                Over
+              </button>
+              <button
+                onClick={() => handleDirectionChange('under')}
                 className={`flex-1 py-2 rounded-md text-xs font-semibold transition-all duration-300 flex items-center justify-center gap-1.5 ${
-                direction === 'under' 
-                  ? 'bg-white text-amber-600 shadow-sm ring-1 ring-black/5' 
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
+                  direction === 'under' 
+                    ? 'bg-white text-amber-600 shadow-sm ring-1 ring-black/5' 
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
                 <TrendingDown size={14} />
-              Under
-            </button>
-          </div>
+                Under
+              </button>
+            </div>
 
-          {/* 图表区域 */}
-          <div className="relative h-40 w-full [&_*]:outline-none">
-            <ResponsiveContainer width="100%" height="100%">
+            {/* 图表区域 */}
+            <div className="relative h-40 w-full [&_*]:outline-none">
+              <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={chartData} margin={{ top: 8, right: 8, left: -22, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="colorActive" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor={COLORS[direction]} stopOpacity={0.2}/>
-                      <stop offset="95%" stopColor={COLORS[direction]} stopOpacity={0}/>
-                  </linearGradient>
-                  <linearGradient id="colorInactive" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#9ca3af" stopOpacity={0.1}/>
-                    <stop offset="95%" stopColor="#9ca3af" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
-                <XAxis 
-                  dataKey="xValue"
+                  <defs>
+                    <linearGradient id="colorActive" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor={COLORS[direction]} stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor={COLORS[direction]} stopOpacity={0.05}/>
+                    </linearGradient>
+                    <linearGradient id="colorInactive" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#9ca3af" stopOpacity={0.15}/>
+                      <stop offset="95%" stopColor="#9ca3af" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
+                  <XAxis 
+                    dataKey="xValue"
                     ticks={direction === 'over' ? [0, 7, 14, 22, 29] : [0, 7, 14, 20, 27]}
-                  tick={(props: any) => {
-                    const { x, y, payload } = props;
-                    const xVal = Number(payload.value);
+                    tick={(props: any) => {
+                      const { x, y, payload } = props;
+                      const xVal = Number(payload.value);
                       // Over: X轴从小到大 26.5→55.5; Under: X轴从大到小 55.5→28.5
-                    const score = direction === 'over' 
-                      ? OVER_MIN + xVal 
-                      : UNDER_MAX - xVal;
-                    const range = direction === 'over' ? OVER_RANGE : UNDER_RANGE;
-                    const isFirstOrLast = xVal === 0 || xVal === range;
-                    return (
-                      <text 
-                        x={x} 
-                        y={Number(y) + 10} 
-                        textAnchor="middle" 
+                      const score = direction === 'over' 
+                        ? OVER_MIN + xVal 
+                        : UNDER_MAX - xVal;
+                      const range = direction === 'over' ? OVER_RANGE : UNDER_RANGE;
+                      const isFirstOrLast = xVal === 0 || xVal === range;
+                      return (
+                        <text 
+                          x={x} 
+                          y={Number(y) + 10} 
+                          textAnchor="middle" 
                           fontSize={9} 
-                        fill={isFirstOrLast ? '#6b7280' : '#d1d5db'}
-                        fontWeight={isFirstOrLast ? 500 : 400}
-                      >
-                        {score}
-                      </text>
-                    );
-                  }}
-                  axisLine={false}
-                  tickLine={false}
-                />
-                <YAxis 
+                          fill={isFirstOrLast ? '#6b7280' : '#d1d5db'}
+                          fontWeight={isFirstOrLast ? 500 : 400}
+                        >
+                          {score}
+                        </text>
+                      );
+                    }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <YAxis 
                     tick={{fontSize: 9, fill: '#9ca3af'}} 
-                  axisLine={false}
-                  tickLine={false}
-                  domain={[1.4, 'auto']}
-                  tickFormatter={(val) => `${val}x`}
-                />
-                <Tooltip 
-                  content={({ active, payload, label }) => {
-                    if (!active || !payload || payload.length === 0) return null;
-                    
-                    const activeItem = payload.find(p => p.dataKey === 'activeMultiplier' && p.value !== null);
-                    const inactiveItem = payload.find(p => p.dataKey === 'inactiveMultiplier' && p.value !== null);
-                    const multiplier = activeItem?.value ?? inactiveItem?.value;
-                    const isActive = !!activeItem;
-                    
-                    if (!multiplier) return null;
-                    
-                    const xVal = Number(label);
+                    axisLine={false}
+                    tickLine={false}
+                    domain={[1.4, 'auto']}
+                    tickFormatter={(val) => `${val}x`}
+                  />
+                  <Tooltip 
+                    content={({ active, payload, label }) => {
+                      if (!active || !payload || payload.length === 0) return null;
+                      
+                      const activeItem = payload.find(p => p.dataKey === 'activeMultiplier' && p.value !== null);
+                      const inactiveItem = payload.find(p => p.dataKey === 'inactiveMultiplier' && p.value !== null);
+                      const multiplier = activeItem?.value ?? inactiveItem?.value;
+                      const isActive = !!activeItem;
+                      
+                      if (!multiplier) return null;
+                      
+                      const xVal = Number(label);
                       // Over: X轴从小到大; Under: X轴从大到小
-                    const score = direction === 'over' 
-                      ? OVER_MIN + xVal 
-                      : UNDER_MAX - xVal;
-                    
-                    return (
+                      const score = direction === 'over' 
+                        ? OVER_MIN + xVal 
+                        : UNDER_MAX - xVal;
+                      
+                      return (
                         <div className="bg-white px-2 py-1.5 rounded-lg shadow-lg border border-gray-100">
                           <p className="text-xs font-medium text-gray-700">{direction === 'over' ? 'Over' : 'Under'} {score} pts</p>
                           <p className={`text-xs font-semibold ${isActive ? (direction === 'over' ? 'text-[#00C896]' : 'text-amber-600') : 'text-gray-400'}`}>
-                          Multiplier: {multiplier}x
-                        </p>
-                      </div>
-                    );
-                  }}
-                />
-                <Area 
-                  type="monotone" 
-                  dataKey="inactiveMultiplier" 
-                  stroke="#d1d5db"
-                  strokeWidth={2}
-                  strokeDasharray="4 4"
-                  fillOpacity={1} 
-                  fill="url(#colorInactive)" 
-                  animationDuration={200}
-                  connectNulls={false}
-                />
-                <Area 
-                  type="monotone" 
-                  dataKey="activeMultiplier" 
-                  stroke={COLORS[direction]} 
+                            Multiplier: {multiplier}x
+                          </p>
+                        </div>
+                      );
+                    }}
+                  />
+                  <Area 
+                    type="monotone" 
+                    dataKey="inactiveMultiplier" 
+                    stroke="#d1d5db"
                     strokeWidth={2}
-                  fillOpacity={1} 
-                  fill="url(#colorActive)" 
-                  animationDuration={200}
-                  connectNulls={false}
-                />
-                <ReferenceDot 
-                  x={currentSliderValue} 
-                  y={currentMultiplier} 
+                    strokeDasharray="4 4"
+                    fillOpacity={1} 
+                    fill="url(#colorInactive)" 
+                    animationDuration={200}
+                    connectNulls={false}
+                  />
+                  <Area 
+                    type="monotone" 
+                    dataKey="activeMultiplier" 
+                    stroke={COLORS[direction]} 
+                    strokeWidth={2}
+                    fillOpacity={1} 
+                    fill="url(#colorActive)" 
+                    animationDuration={200}
+                    connectNulls={false}
+                  />
+                  <ReferenceDot 
+                    x={currentSliderValue} 
+                    y={currentMultiplier} 
                     r={4}
-                  fill="white"
-                  stroke={COLORS[direction]}
-                  strokeWidth={2}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-            
-            {/* 浮动标签 - 隐含胜率 */}
+                    fill="white"
+                    stroke={COLORS[direction]}
+                    strokeWidth={2}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+              
+              {/* 浮动标签 - 隐含胜率 */}
               <div className={`absolute -top-1 right-6 bg-white/70 backdrop-blur-sm px-2 py-0.5 rounded-md border border-gray-100/50 text-[10px] font-medium ${direction === 'over' ? 'text-[#00C896]' : 'text-amber-600'} ${multiplierFlicker ? 'opacity-70' : 'opacity-100'} transition-opacity`}>
-               Implied Prob: {calculateImpliedProb(currentMultiplier)}%
+                 Implied Prob: {calculateImpliedProb(currentMultiplier)}%
+              </div>
             </div>
-          </div>
 
-          {/* 滑块控制 */}
+            {/* 滑块控制 */}
             <div className="mt-5 mb-5 relative">
               <label className="block text-xs font-medium text-gray-700 mb-1.5 flex justify-between">
-              <span>Set Your Target Score</span>
+                <span>Set Your Target Score</span>
                 <span className={`font-semibold ${direction === 'over' ? 'text-[#00C896]' : 'text-amber-600'}`}>
-                {direction === 'over' ? 'Over' : 'Under'} {targetScore} pts
-              </span>
-            </label>
-            <style>
-              {`
-                .slider-thumb::-webkit-slider-thumb {
-                  -webkit-appearance: none;
-                  appearance: none;
+                  {direction === 'over' ? 'Over' : 'Under'} {targetScore} pts
+                </span>
+              </label>
+              <style>
+                {`
+                  .slider-thumb::-webkit-slider-thumb {
+                    -webkit-appearance: none;
+                    appearance: none;
                     width: 28px;
                     height: 18px;
                     border-radius: 9px;
@@ -999,8 +550,8 @@ const RiskRewardInterface: React.FC<RiskRewardInterfaceProps> = ({
                       inset 1px 0 0 rgba(255, 255, 255, 0.8),
                       inset -1px 0 0 rgba(0, 0, 0, 0.02);
                     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-                }
-                .slider-thumb::-webkit-slider-thumb:hover {
+                  }
+                  .slider-thumb::-webkit-slider-thumb:hover {
                     cursor: grab;
                     transform: scale(1.05);
                     box-shadow: 
@@ -1011,8 +562,8 @@ const RiskRewardInterface: React.FC<RiskRewardInterfaceProps> = ({
                       inset 0 -1px 0 rgba(0, 0, 0, 0.04),
                       inset 1px 0 0 rgba(255, 255, 255, 0.8),
                       inset -1px 0 0 rgba(0, 0, 0, 0.02);
-                }
-                .slider-thumb::-webkit-slider-thumb:active {
+                  }
+                  .slider-thumb::-webkit-slider-thumb:active {
                     cursor: grabbing;
                     transform: scale(0.98);
                     box-shadow: 
@@ -1021,8 +572,8 @@ const RiskRewardInterface: React.FC<RiskRewardInterfaceProps> = ({
                       0 0 16px 4px ${direction === 'over' ? 'rgba(0, 200, 150, 0.25)' : 'rgba(245, 158, 11, 0.25)'},
                       inset 0 1px 0 rgba(255, 255, 255, 0.9),
                       inset 0 -1px 0 rgba(0, 0, 0, 0.06);
-                }
-                .slider-thumb::-moz-range-thumb {
+                  }
+                  .slider-thumb::-moz-range-thumb {
                     width: 28px;
                     height: 18px;
                     border-radius: 9px;
@@ -1051,134 +602,134 @@ const RiskRewardInterface: React.FC<RiskRewardInterfaceProps> = ({
                       inset 0 -1px 0 rgba(0, 0, 0, 0.04),
                       inset 1px 0 0 rgba(255, 255, 255, 0.8),
                       inset -1px 0 0 rgba(0, 0, 0, 0.02);
-                }
-              `}
-            </style>
-            <input
-              type="range"
-              min={0}
-              max={currentRange}
-              value={currentSliderValue}
-              onChange={(e) => {
-                const sliderVal = parseInt(e.target.value);
-                if (direction === 'over') {
+                  }
+                `}
+              </style>
+              <input
+                type="range"
+                min={0}
+                max={currentRange}
+                value={currentSliderValue}
+                onChange={(e) => {
+                  const sliderVal = parseInt(e.target.value);
+                  if (direction === 'over') {
                     // Over: 滑块从左到右，score从26.5到55.5
-                  setTargetScore(OVER_MIN + sliderVal);
-                } else {
+                    setTargetScore(OVER_MIN + sliderVal);
+                  } else {
                     // Under: 滑块从左到右，score从55.5到28.5
-                  setTargetScore(UNDER_MAX - sliderVal);
-                }
-              }}
+                    setTargetScore(UNDER_MAX - sliderVal);
+                  }
+                }}
                 className="w-full h-2 rounded-full appearance-none cursor-pointer slider-thumb"
-              style={{
+                style={{
                   background: `linear-gradient(to right, ${COLORS[direction]} 0%, ${COLORS[direction]} ${sliderPercent}%, #e5e7eb ${sliderPercent}%, #e5e7eb 100%)`,
                   boxShadow: 'inset 0 1px 2px rgba(0, 0, 0, 0.1)'
-              }}
-            />
+                }}
+              />
               <div className="mt-1 flex justify-between text-[10px] text-gray-500 px-0.5">
                 {/* 两种模式下滑块右移都代表风险增加 */}
-              <span>Low Risk</span>
-              <span>High Risk</span>
+                <span>Low Risk</span>
+                <span>High Risk</span>
+              </div>
             </div>
-          </div>
 
-          {/* 核心数据展示面板 */}
+            {/* 核心数据展示面板 */}
             <div className="bg-gray-50 rounded-xl p-3 mb-4 border border-gray-100">
               <div className="flex justify-between items-center mb-2.5">
-              <div>
+                <div>
                   <p className="text-[10px] text-gray-500 uppercase tracking-wide font-semibold mb-0.5">
-                  Current Multiplier
-                </p>
+                    Current Multiplier
+                  </p>
                   <span className={`text-xl font-bold transition-all ${direction === 'over' ? 'text-[#00C896]' : 'text-amber-600'} ${multiplierFlicker ? 'opacity-60' : 'opacity-100'}`}>
-                  {currentMultiplier.toFixed(2)}x
-                </span>
-              </div>
-              <div className="text-right">
+                    {currentMultiplier.toFixed(2)}x
+                  </span>
+                </div>
+                <div className="text-right">
                   <p className="text-[10px] text-gray-500 uppercase tracking-wide font-semibold mb-0.5">Est. Payout</p>
                   <span className="text-xl font-bold text-gray-900">${potentialReturn}</span>
+                </div>
               </div>
-            </div>
-            
-            {/* 金额输入 */}
-            <div className="relative">
+              
+              {/* 金额输入 */}
+              <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none">
                   <DollarSign size={14} className={isAmountInvalid ? 'text-red-400' : 'text-gray-400'} />
-              </div>
-              <input
-                type="text"
-                inputMode="numeric"
-                value={amountDisplay}
-                onChange={handleAmountChange}
+                </div>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={amountDisplay}
+                  onChange={handleAmountChange}
                   className={`block w-full pl-7 pr-11 py-2 border rounded-lg focus:ring-2 text-gray-900 text-sm font-medium bg-white shadow-sm transition-colors outline-none ${
-                  isAmountInvalid 
-                    ? 'border-red-300 focus:ring-red-500 focus:border-red-500' 
-                    : direction === 'over' 
+                    isAmountInvalid 
+                      ? 'border-red-300 focus:ring-red-500 focus:border-red-500' 
+                      : direction === 'over' 
                         ? 'border-gray-200 focus:ring-[#00C896] focus:border-[#00C896]' 
-                      : 'border-gray-200 focus:ring-amber-500 focus:border-amber-500'
-                }`}
-                placeholder="10"
-              />
+                        : 'border-gray-200 focus:ring-amber-500 focus:border-amber-500'
+                  }`}
+                  placeholder="10"
+                />
                 <div className="absolute inset-y-0 right-0 pr-2.5 flex items-center pointer-events-none">
                   <span className={`text-xs font-medium ${isAmountInvalid ? 'text-red-400' : 'text-gray-400'}`}>USDC</span>
+                </div>
               </div>
-            </div>
               <div className="h-4 mt-0.5">
-              {isAmountInvalid && (
+                {isAmountInvalid && (
                   <p className="text-[10px] text-red-500 flex items-center gap-1">
                     <AlertTriangle size={10} />
-                  {isAmountTooLow && `Minimum amount is $${MIN_AMOUNT}`}
-                  {isAmountTooHigh && `Maximum amount is $${MAX_AMOUNT.toLocaleString()}`}
-                </p>
-              )}
+                    {isAmountTooLow && `Minimum amount is $${MIN_AMOUNT}`}
+                    {isAmountTooHigh && `Maximum amount is $${MAX_AMOUNT.toLocaleString()}`}
+                  </p>
+                )}
+              </div>
             </div>
-          </div>
 
-          {/* 底部按钮 */}
-          <button 
-              disabled={isAmountInvalid || buyButtonState !== 'idle'}
-              onClick={handleBuyClick}
-              className={`w-full py-3 rounded-xl font-bold text-sm text-white transition-all duration-300 flex items-center justify-center gap-2 ${
-              isAmountInvalid 
-                ? 'bg-gray-300 cursor-not-allowed' 
-                  : buyButtonState === 'loading'
-                    ? direction === 'over'
-                      ? 'bg-[#00A67A] cursor-wait'
-                      : 'bg-amber-600 cursor-wait'
-                    : buyButtonState === 'success'
-                      ? direction === 'over'
-                        ? 'bg-[#00C896] shadow-md shadow-[#00C896]/20'
-                        : 'bg-amber-500 shadow-md shadow-amber-500/20'
-                : direction === 'over' 
-                        ? 'bg-[#00C896] hover:bg-[#00B085] shadow-md shadow-[#00C896]/20 active:scale-[0.98]' 
-                  : 'bg-amber-500 hover:bg-amber-600 shadow-md shadow-amber-500/20 active:scale-[0.98]'
-            }`}
-          >
-              {buyButtonState === 'loading' ? (
-                <Loader2 size={18} className="animate-spin" />
-              ) : buyButtonState === 'success' ? (
-                <>
-                  <Check size={18} />
-                  <span>Position Added</span>
-                </>
-              ) : (
-                <>
-                  <span>{direction === 'over' ? 'Buy Over' : 'Buy Under'}</span>
-                  <ArrowRight size={16} />
-                </>
-              )}
-          </button>
+            {/* 底部按钮 */}
+            <button 
+              disabled={isAmountInvalid}
+              className={`w-full py-3 rounded-xl font-bold text-sm text-white transition-all flex items-center justify-center gap-2 ${
+                isAmountInvalid 
+                  ? 'bg-gray-300 cursor-not-allowed' 
+                  : direction === 'over' 
+                    ? 'bg-[#00C896] hover:bg-[#00B085] shadow-md shadow-[#00C896]/20 active:scale-[0.98]' 
+                    : 'bg-amber-500 hover:bg-amber-600 shadow-md shadow-amber-500/20 active:scale-[0.98]'
+              }`}
+            >
+              <span>{direction === 'over' ? 'Buy Over' : 'Buy Under'}</span>
+              <ArrowRight size={16} />
+            </button>
 
-          {/* 风险提示 */}
+            {/* 风险提示 */}
             <div className="mt-2 flex items-start gap-1.5 text-[10px] text-gray-400 leading-relaxed">
               <Info size={12} className="flex-shrink-0 mt-0.5" />
-            <p>
+              <p>
                 Prediction markets involve risk. Multipliers adjust dynamically.
-            </p>
-          </div>
+              </p>
+            </div>
 
           </div>
         </div>
       </div>
+    </>
+  );
+
+  if (embed) {
+    return (
+      <div
+        ref={wrapperRef}
+        className="w-screen h-screen flex items-center justify-center overflow-hidden font-sans text-gray-800 select-none"
+        style={{ background: 'transparent' }}
+      >
+        <div style={{ transform: `scale(${scale})`, transformOrigin: 'center center' }}>
+          {phoneContent}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex justify-center items-center min-h-screen bg-gray-200 p-4 font-sans text-gray-800 select-none">
+      {phoneContent}
     </div>
   );
 };

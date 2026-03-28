@@ -1,61 +1,54 @@
-import { useState, useEffect } from 'react';
-import RiskRewardInterface from './components/RiskRewardInterface';
-import StandardTrade from './components/StandardTrade';
+import { useState, useMemo } from 'react'
+import RiskRewardInterface from './components/RiskRewardInterface'
+import RiskRewardDemo from './components/RiskRewardDemo'
 
 function App() {
-  const [currentPage, setCurrentPage] = useState<'standard' | 'flex'>('standard');
-  const [flexDirection, setFlexDirection] = useState<'over' | 'under'>('over');
-  const [isEmbedMode, setIsEmbedMode] = useState(false);
+  const isEmbed = useMemo(() => {
+    return new URLSearchParams(window.location.search).get('embed') === 'true'
+  }, [])
 
-  // 检查URL参数，判断是否为嵌入模式
-  useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const embed = urlParams.get('embed');
-    if (embed === 'true' || embed === '1') {
-      setIsEmbedMode(true);
-      setCurrentPage('flex'); // 嵌入模式直接显示Flex Prediction
-      
-      // 嵌入模式下隐藏滚动条
-      document.body.style.overflow = 'hidden';
-      document.documentElement.style.overflow = 'hidden';
-    }
-    
-    return () => {
-      // 清理
-      document.body.style.overflow = '';
-      document.documentElement.style.overflow = '';
-    };
-  }, []);
+  const [showDemo, setShowDemo] = useState(false)
 
-  const handleEnterFlexMode = (direction: 'over' | 'under') => {
-    setFlexDirection(direction);
-    setCurrentPage('flex');
-  };
-
-  const handleBackToStandard = () => {
-    setCurrentPage('standard');
-  };
-
-  // 嵌入模式：只显示Flex Prediction，支持响应式缩放
-  if (isEmbedMode) {
-    return (
-      <RiskRewardInterface 
-        initialDirection={flexDirection}
-        embedMode={true}
-      />
-    );
+  if (isEmbed) {
+    return <RiskRewardInterface embed />
   }
 
-  if (currentPage === 'flex') {
-    return (
-      <RiskRewardInterface 
-        initialDirection={flexDirection}
-        onBack={handleBackToStandard}
-      />
-    );
-  }
+  return (
+    <div className="min-h-screen bg-gray-200">
+      <div className="fixed top-4 left-4 z-50 flex gap-2">
+        <button
+          onClick={() => setShowDemo(false)}
+          className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+            !showDemo 
+              ? 'bg-gray-900 text-white' 
+              : 'bg-white text-gray-600 hover:bg-gray-100'
+          }`}
+        >
+          原版 Prototype
+        </button>
+        <button
+          onClick={() => setShowDemo(true)}
+          className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+            showDemo 
+              ? 'bg-gray-900 text-white' 
+              : 'bg-white text-gray-600 hover:bg-gray-100'
+          }`}
+        >
+          Framer 动效演示
+        </button>
+      </div>
 
-  return <StandardTrade onEnterFlexMode={handleEnterFlexMode} />;
+      {showDemo ? (
+        <div className="min-h-screen flex items-center justify-center p-8">
+          <div className="bg-white rounded-2xl shadow-xl p-6">
+            <RiskRewardDemo />
+          </div>
+        </div>
+      ) : (
+        <RiskRewardInterface />
+      )}
+    </div>
+  )
 }
 
-export default App;
+export default App
